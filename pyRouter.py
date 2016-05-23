@@ -4,25 +4,32 @@
 
 import telnetlib, time, re, csv
 from Tkinter import *
+from tkFileDialog import askopenfilename
 import threading
 import datetime
-
+import time
 
 #Source list CSV file (RTR source number, Displayed name)
-sourceCSV = "../sources.csv"
+sourceCSV = "sources.csv"
 #Destination list CSV file (RTR destination number, Displayed name)
-destinationsCSV = "../dest_alpha.csv"
+destinationsCSV = "destinations.csv"
 #Router IP address
 host = "10.10.43.3"
 #Router port (default 10001)
 port = 10001
 timeout = 120
-maxColumns = 12
+#Router config
+max_destinations = 144
+max_sources = 144
+
+#GUI Config
 #Colors
 destSelColor = "red"
 destLockColor = "orange"
 srcSelColor = "red"
 winBGColor = "white"
+#Button Layouts
+maxColumns = 12
 
 #Initilizations
 lastSrc = -1
@@ -38,7 +45,7 @@ with open(destinationsCSV, 'rU') as f:
     reader = csv.reader(f,dialect='excel')
     destinations = list(reader)
 
-video_check = re.compile("^[\\r]*\*{2} V\d{1,3},\d{1,3},\d{1,2} (OK\s)?!!")
+video_check = re.compile("^[\\r]*\*{2} V\d{1,3},\d{1,3},(\d{1,2}|-) (OK\s)?!!")
 lock_check = re.compile("^[\\r]*\*{2} B\d{1,3},\d{1,4},1 (OK\s)?!!")
 unlock_check = re.compile("^[\\r]*\*{2} B\d{1,3},\d{1,4},0 (OK\s)?!!")
 
@@ -142,6 +149,8 @@ def readRouter2():
                     dest = command[command.find("V")+1:command.find(",")]
                     command = command.replace(",","X",1)
                     src = command[command.find("X")+1:command.find(",")]
+                    print dest
+                    print src
                     try:
                         dstBtnIdx = [y[0] for y in dst_buttons].index(dest)
                         srcBtnIdx = [y[0] for y in src_buttons].index(src)
@@ -161,7 +170,10 @@ def readRouter2():
                         print "Not in list!"
                 elif lock_check.search(command):
                     dest = command[command.find("B")+1:command.find(",")]
-                    dstBtnIdx = [y[0] for y in dst_buttons].index(dest)
+                    try:
+                    	dstBtnIdx = [y[0] for y in dst_buttons].index(dest)
+                    except ValueError:
+                    	print "Destination not in list, skipping"
                     output = destinations[dstBtnIdx][1]+" is now LOCKED"
                     dst_buttons[dstBtnIdx][2].configure(highlightbackground=destLockColor)
                     dst_buttons[dstBtnIdx][2].configure(bg=destLockColor)
@@ -188,19 +200,9 @@ def route1(source,button):
     global routerSession
     global destPST
     global destinations
-    routerCmd = "** X"+destinations[destPST][0]+","+ source +",0 !!"
+    routerCmd = "** X"+destinations[destPST][0]+","+ source +",1 !!"
     routerSession.write(routerCmd)
     statusText.configure(text="Command Sent: " + "**X"+destinations[destPST][0]+","+ source +",0,!!")
-
-def salvoTest():
-    global routerSession
-    salvo = ["1","2","3","4"]
-    dest = "51"
-    for source in salvo:
-        routerCmd = "** X"+dest+","+ source +",0 !!"
-        routerSession.write(routerCmd)
-        statusText.configure(text="Command Sent: " + "**X"+destinations[destPST][0]+","+ source +",0,!!")
-        sleep(1)
 
 destPST = -1
 def pickDest(destination,button):
@@ -244,12 +246,57 @@ def unlockDest(e):
     routerCmd = "** B"+destinations[destPST][0]+",9999,0 !!"
     routerSession.write(routerCmd)
     statusText.configure(text="Command sent: " + routerCmd)
-    
+
+def lockAll(e):
+    for i in range(1,max_destinations+1):
+        routerCmd = "** B%d,9999,1 !!" % i
+        routerSession.write(routerCmd)
+        
+def unlockAll(e):
+    for i in range(1,max_destinations+1):
+        routerCmd = "** B%d,9999,0 !!" % i
+        routerSession.write(routerCmd)
+	    
 def pollRouter(e):
     global routerSession
+    routerCmd = "**U4!!"
+    routerSession.write(routerCmd)
     for i in range(1,145):
         routerCmd = "** B%d,0,0 !!" % i
         routerSession.write(routerCmd)
+
+def loadSalvo():
+   global salvo
+   filename = askopenfilename(parent=master)
+   f = open(filename, 'rU')
+   reader = csv.reader(f,dialect='excel')
+   salvo = list(reader)
+   print salvo
+   print len(salvo)
+   for i in range(len(salvo)):
+    if salvo[i][0] == "" or salvo[i][1] == "":
+        print "Blank DST or SRC"
+    else:
+        print "Dest: " + salvo[i][0] + "->Src: " + salvo[i][1]
+        if salvo[i][2] == "1":
+            print "LOCKED DESTINATION"
+
+def runSalvo():
+    global routerSession
+    statusText.configure(text="Standby... Running Salvo!")
+    for i in range(len(salvo)):
+        if salvo[i][0] == "" or salvo[i][1] == "":
+            print "Blank DST or SRC"
+        else:
+            print "Dest:" + salvo[i][0] + "->Src: " + salvo[i][1]
+            routerCmd = "** X"+salvo[i][0]+","+ salvo[i][1] +",0 !!"
+            routerSession.write(routerCmd)
+            if salvo[i][2] == "1":
+                routerCmd = "** B"+salvo[i][0]+",9999,1 !!"
+                routerSession.write(routerCmd)  
+                print "Locking DEST:" + salvo[i][0] 
+            time.sleep(1)
+    statusText.configure(text="Salvo Completed!")
 
 class ToolTip(object):
 #http://www.voidspace.org.uk/python/weblog/arch_d7_2006_07_01.shtml#e387
@@ -298,6 +345,12 @@ def createToolTip(widget, text):
     widget.bind('<Enter>', enter)
     widget.bind('<Leave>', leave)
 
+menubar = Menu(master)
+salvomenu = Menu(menubar, tearoff=0)
+salvomenu.add_command(label="Open",command=loadSalvo)
+salvomenu.add_separator()
+salvomenu.add_command(label="Run",command=runSalvo)
+menubar.add_cascade(label="Salvo", menu=salvomenu)
 
 statusText = Label(master, text="Press connect!")
 statusText.grid(row=0,column=0,columnspan=12)
@@ -307,13 +360,23 @@ lockButton=Button(master,text="Lock")
 lockButton.grid(row=1,column=4)
 unlockButton=Button(master,text="Unlock")
 unlockButton.grid(row=1,column=5)
-salvoButton=Button(master,text="SalvoTest")
-salvoButton.grid(row=1,column=6)
+lockAllButton=Button(master,text="Lock All")
+lockAllButton.grid(row=1,column=6)
+unlockAllButton=Button(master,text="Unlock All")
+unlockAllButton.grid(row=1,column=7)
+#loadSalvoButton=Button(master,text="Load Salvo")
+#loadSalvoButton.grid(row=1,column=8)
+#runSalvoButton=Button(master,text="Run Salvo")
+#runSalvoButton.grid(row=1,column=9)
+
+#Button bindings
 connectButton.bind('<Button-1>',connectRouter)
 lockButton.bind('<Button-1>',lockDest)
 unlockButton.bind('<Button-1>',unlockDest)
-salvoButton.bind('<Button-1>',salvoTest)
-
+lockAllButton.bind('<Button-1>',lockAll)
+unlockAllButton.bind('<Button-1>',unlockAll)
+#loadSalvoButton.bind('<Button-1>',loadSalvo)
+#runSalvoButton.bind('<Button-1>',runSalvo)
 createToolTip(connectButton, "Press to connect to router!")
 
 
@@ -357,5 +420,5 @@ for i in range(len(sources)):
 	else:
 		r = r + 1
 		c = 0
-
+master.config(menu=menubar)
 master.mainloop()
