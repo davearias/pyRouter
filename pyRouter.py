@@ -1,7 +1,7 @@
 #This looks like it will work; pick a destination and a source and it will take. No confirmation, just GO.
 #Might need to switch to a background poll for lock checks instead of constant updating. Commenting out the lock inquiry on line 163-165 for now.
 #Need to add a way to see a locked destination is selected, BG currently does not change.
-#change test
+
 import telnetlib, time, re, csv
 from Tkinter import *
 from tkFileDialog import askopenfilename
