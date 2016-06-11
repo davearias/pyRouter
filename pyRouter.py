@@ -419,6 +419,14 @@ lockAllButton.bind('<Button-1>',lockAll)
 unlockAllButton.bind('<Button-1>',unlockAll)
 #loadSalvoButton.bind('<Button-1>',loadSalvo)
 #runSalvoButton.bind('<Button-1>',runSalvo)
+
+#Key bindings
+master.bind('k',lockDest)
+master.bind('u',unlockDest)
+master.bind('<Control-K>',lockAll)
+master.bind('<Control-U>',unlockAll)
+master.bind('<Control-c>',connectRouter)
+master.bind('<Control-d>',stopRead)
 createToolTip(connectButton, "Press to connect to router!")
 
 master.config(menu=menubar)
