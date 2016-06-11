@@ -295,7 +295,7 @@ def runSalvo():
                 routerCmd = "** B"+salvo[i][0]+",9999,1 !!"
                 routerSession.write(routerCmd)  
                 print "Locking DEST:" + salvo[i][0] 
-            time.sleep(1)
+            time.sleep(0.1)
     statusText.configure(text="Salvo Completed!")
 
 class ToolTip(object):
@@ -345,6 +345,48 @@ def createToolTip(widget, text):
     widget.bind('<Enter>', enter)
     widget.bind('<Leave>', leave)
 
+def drawButtons():
+    global dst_buttons, src_buttons
+    sourceText = Label(master, text="Destinations")
+    sourceText.grid(row=2,column=0,columnspan=12)
+    r = 3
+    c = 0
+    dst_buttons = []
+    for i in range(len(destinations)):
+        destID=destinations[i][0]
+    # For lambda sourceID=sourceID: http://stackoverflow.com/questions/10865116/python-tkinter-creating-buttons-in-for-loop-passing-command-arguments
+    #    Button(text=destinations[i][1].rstrip(), width=10,command=lambda destID=destID: pickDest(destID)).grid(row=r,column=c)
+        dstButton = Button(text=destinations[i][1].rstrip(), width=10,command=lambda destID=destID,dstBtn=i: pickDest(destID,dstBtn))
+        dstButton.grid(row=r,column=c)
+        dst_buttons.append((destID,destinations[i][1],dstButton))
+        createToolTip(dstButton, "RouterOP: %s" % destID)
+        if c < maxColumns:
+            c = c + 1
+        else:
+            r = r + 1
+            c = 0
+    
+    r = r + 1
+    c = 0
+    sourceText = Label(master, text="Sources")
+    sourceText.grid(row=r,column=0,columnspan=12)
+    r = r + 1
+    c = 0
+    src_buttons = []
+    for i in range(len(sources)):
+        sourceID=sources[i][0]
+    # For lambda sourceID=sourceID: http://stackoverflow.com/questions/10865116/python-tkinter-creating-buttons-in-for-loop-passing-command-arguments
+    #    Button(text=sources[i][1].rstrip(), width=10,command=lambda sourceID=sourceID: route1(sourceID)).grid(row=r,column=c)
+        srcButton = Button(text=sources[i][1].rstrip(), width=10,command=lambda sourceID=sourceID,srcBtn=i: route1(sourceID,srcBtn))
+        srcButton.grid(row=r,column=c)
+        src_buttons.append((sourceID,sources[i][1],srcButton))
+        createToolTip(srcButton, "RouterIP: %s" % sourceID)
+        if c < maxColumns:
+            c = c + 1
+        else:
+            r = r + 1
+            c = 0
+    
 menubar = Menu(master)
 salvomenu = Menu(menubar, tearoff=0)
 salvomenu.add_command(label="Open",command=loadSalvo)
@@ -377,48 +419,16 @@ lockAllButton.bind('<Button-1>',lockAll)
 unlockAllButton.bind('<Button-1>',unlockAll)
 #loadSalvoButton.bind('<Button-1>',loadSalvo)
 #runSalvoButton.bind('<Button-1>',runSalvo)
+
+#Key bindings
+master.bind('k',lockDest)
+master.bind('u',unlockDest)
+master.bind('<Control-K>',lockAll)
+master.bind('<Control-U>',unlockAll)
+master.bind('<Control-c>',connectRouter)
+master.bind('<Control-d>',stopRead)
 createToolTip(connectButton, "Press to connect to router!")
 
-
-
-sourceText = Label(master, text="Destinations")
-sourceText.grid(row=2,column=0,columnspan=12)
-r = 3
-c = 0
-dst_buttons = []
-for i in range(len(destinations)):
-	destID=destinations[i][0]
-# For lambda sourceID=sourceID: http://stackoverflow.com/questions/10865116/python-tkinter-creating-buttons-in-for-loop-passing-command-arguments
-#	Button(text=destinations[i][1].rstrip(), width=10,command=lambda destID=destID: pickDest(destID)).grid(row=r,column=c)
-	dstButton = Button(text=destinations[i][1].rstrip(), width=10,command=lambda destID=destID,dstBtn=i: pickDest(destID,dstBtn))
-	dstButton.grid(row=r,column=c)
-	dst_buttons.append((destID,destinations[i][1],dstButton))
-	createToolTip(dstButton, "RouterOP: %s" % destID)
-	if c < maxColumns:
-		c = c + 1
-	else:
-		r = r + 1
-		c = 0
-
-r = r + 1
-c = 0
-sourceText = Label(master, text="Sources")
-sourceText.grid(row=r,column=0,columnspan=12)
-r = r + 1
-c = 0
-src_buttons = []
-for i in range(len(sources)):
-	sourceID=sources[i][0]
-# For lambda sourceID=sourceID: http://stackoverflow.com/questions/10865116/python-tkinter-creating-buttons-in-for-loop-passing-command-arguments
-#	Button(text=sources[i][1].rstrip(), width=10,command=lambda sourceID=sourceID: route1(sourceID)).grid(row=r,column=c)
-	srcButton = Button(text=sources[i][1].rstrip(), width=10,command=lambda sourceID=sourceID,srcBtn=i: route1(sourceID,srcBtn))
-	srcButton.grid(row=r,column=c)
-	src_buttons.append((sourceID,sources[i][1],srcButton))
-	createToolTip(srcButton, "RouterIP: %s" % sourceID)
-	if c < maxColumns:
-		c = c + 1
-	else:
-		r = r + 1
-		c = 0
 master.config(menu=menubar)
+drawButtons()
 master.mainloop()
